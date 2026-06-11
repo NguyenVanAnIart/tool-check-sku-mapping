@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SKU Price Compare</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --ok: #22c55e;
+      --err: #ef4444;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 1rem;
+    }
+    .db-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .dot.ok { background: var(--ok); }
+    .dot.err { background: var(--err); }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.35rem; }
+    input[type="file"] {
+      width: 100%;
+      padding: 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 0.55rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .env-picker {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    @media (max-width: 500px) { .env-picker { grid-template-columns: 1fr; } }
+    .env-btn {
+      padding: 0.85rem 1rem;
+      text-align: left;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .env-btn:hover { border-color: var(--accent); }
+    .env-btn.active {
+      border-color: var(--accent);
+      background: rgba(59, 130, 246, 0.12);
+    }
+    .env-btn .env-name {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+    .env-btn .env-detail {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+    .sheets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .sheet-chip {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.65rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .sheet-chip input { accent-color: var(--accent); }
+    .sheet-chip.selected { border-color: var(--accent); background: rgba(59, 130, 246, 0.12); }
+    .hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+    button {
+      padding: 0.65rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--bg); }
+    .log {
+      font-size: 0.85rem;
+      color: var(--muted);
+      min-height: 1.25rem;
+      margin-top: 0.75rem;
+    }
+    .log.err { color: var(--err); }
+    .log.ok { color: var(--ok); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+    th, td {
+      padding: 0.45rem 0.5rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); font-weight: 500; }
+    .totals { font-weight: 600; }
+    .download-bar {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .download-bar a {
+      color: var(--ok);
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .download-bar a:hover { text-decoration: underline; }
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 0.35rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>SKU Price Compare</h1>
+    <p class="subtitle">So sánh file Excel giá xưởng với bảng sku_price trên PostgreSQL</p>
+
+    <div class="card">
+      <h2>Môi trường database</h2>
+      <label>Chọn môi trường</label>
+      <div class="env-picker" id="envPicker"></div>
+      <div class="db-status" id="dbStatus">
+        <span class="dot" id="dbDot"></span>
+        <span id="dbText">Đang kiểm tra...</span>
+      </div>
+      <p class="hint">Cấu hình đọc từ <code>.env.dev</code> (Beta) và <code>.env.production</code> (Production).</p>
+    </div>
+
+    <div class="card">
+      <h2>File Excel</h2>
+      <label for="fileInput">Chọn file pricing (.xlsx)</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" />
+      <p class="hint" id="fileHint">Chưa chọn file</p>
+
+      <div id="sheetSection" hidden style="margin-top: 1rem;">
+        <label>Chọn xưởng (bỏ trống = tất cả)</label>
+        <div class="sheets" id="sheetList"></div>
+      </div>
+
+      <div style="margin-top: 1rem; max-width: 12rem;">
+        <label for="headerRow">Dòng header</label>
+        <input type="number" id="headerRow" value="5" min="1" max="50" />
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-primary" id="compareBtn" disabled>So sánh</button>
+        <button type="button" class="btn-secondary" id="selectAllBtn" hidden>Chọn tất cả</button>
+        <button type="button" class="btn-secondary" id="clearSheetsBtn" hidden>Bỏ chọn</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="card" id="resultCard" hidden>
+      <h2>Kết quả</h2>
+      <div id="summaryTable"></div>
+      <div id="downloadBar" class="download-bar" hidden></div>
+    </div>
+  </div>
+
+  <script>
+    let uploadId = null;
+    let factorySheets = [];
+    let environments = [];
+    let selectedEnvironment = null;
+
+    const ENV_STORAGE_KEY = 'sku-price-compare-env';
+
+    const envPicker = document.getElementById('envPicker');
+    const dbDot = document.getElementById('dbDot');
+    const dbText = document.getElementById('dbText');
+    const fileInput = document.getElementById('fileInput');
+    const fileHint = document.getElementById('fileHint');
+    const sheetSection = document.getElementById('sheetSection');
+    const sheetList = document.getElementById('sheetList');
+    const compareBtn = document.getElementById('compareBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const clearSheetsBtn = document.getElementById('clearSheetsBtn');
+    const logEl = document.getElementById('log');
+    const resultCard = document.getElementById('resultCard');
+    const summaryTable = document.getElementById('summaryTable');
+    const downloadBar = document.getElementById('downloadBar');
+
+    function setLog(msg, type = '') {
+      logEl.textContent = msg;
+      logEl.className = 'log' + (type ? ' ' + type : '');
+    }
+
+    function envDetail(env) {
+      if (!env.available) return `Thiếu file ${env.file}`;
+      return `${env.host}:${env.port}/${env.database}`;
+    }
+
+    function saveSelectedEnvironment() {
+      try {
+        if (selectedEnvironment) {
+          localStorage.setItem(ENV_STORAGE_KEY, selectedEnvironment);
+        }
+      } catch (_) {}
+    }
+
+    function renderEnvironments() {
+      envPicker.innerHTML = '';
+      environments.forEach((env) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className =
+          'env-btn' + (env.id === selectedEnvironment ? ' active' : '');
+        btn.disabled = !env.available;
+        btn.innerHTML = `
+          <span class="env-name">${env.label}</span>
+          <span class="env-detail">${envDetail(env)}</span>
+        `;
+        btn.addEventListener('click', () => selectEnvironment(env.id));
+        envPicker.appendChild(btn);
+      });
+    }
+
+    function setDbStatus(ok, text) {
+      dbDot.className = ok ? 'dot ok' : 'dot err';
+      dbText.textContent = text;
+    }
+
+    async function selectEnvironment(id) {
+      selectedEnvironment = id;
+      saveSelectedEnvironment();
+      renderEnvironments();
+      await testDbConnection();
+    }
+
+    async function testDbConnection() {
+      if (!selectedEnvironment) return;
+      dbDot.className = 'dot';
+      dbText.textContent = 'Đang kiểm tra...';
+      try {
+        const res = await fetch('/api/db-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ environment: selectedEnvironment }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          setDbStatus(
+            true,
+            `Đã kết nối ${data.environment}: ${data.host}:${data.port}/${data.database}`,
+          );
+        } else {
+          setDbStatus(false, `Lỗi: ${data.error}`);
+        }
+      } catch (_) {
+        setDbStatus(false, 'Không gọi được server');
+      }
+    }
+
+    async function loadEnvironments() {
+      try {
+        const res = await fetch('/api/db-environments');
+        if (!res.ok) {
+          const hint =
+            res.status === 404
+              ? 'Server cũ — tắt terminal đang chạy và mở lại start-ui.bat'
+              : `Lỗi HTTP ${res.status}`;
+          throw new Error(hint);
+        }
+        const data = await res.json();
+        environments = data.environments || [];
+        if (!environments.length) {
+          throw new Error('Không có môi trường nào. Kiểm tra file .env.dev và .env.production');
+        }
+
+        const stored = localStorage.getItem(ENV_STORAGE_KEY);
+        const storedValid = environments.some((e) => e.id === stored && e.available);
+        const defaultEnv =
+          environments.find((e) => e.id === 'production' && e.available) ||
+          environments.find((e) => e.available);
+
+        selectedEnvironment = storedValid ? stored : defaultEnv?.id;
+        renderEnvironments();
+        await testDbConnection();
+      } catch (e) {
+        dbDot.className = 'dot err';
+        dbText.textContent = e.message || 'Không tải được cấu hình môi trường';
+      }
+    }
+
+    function renderSheets() {
+      sheetList.innerHTML = '';
+      factorySheets.forEach((name) => {
+        const chip = document.createElement('label');
+        chip.className = 'sheet-chip';
+        chip.innerHTML = `<input type="checkbox" value="${name}" /> ${name}`;
+        chip.querySelector('input').addEventListener('change', () => {
+          chip.classList.toggle('selected', chip.querySelector('input').checked);
+        });
+        sheetList.appendChild(chip);
+      });
+      sheetSection.hidden = factorySheets.length === 0;
+      selectAllBtn.hidden = factorySheets.length === 0;
+      clearSheetsBtn.hidden = factorySheets.length === 0;
+    }
+
+    function getSelectedSheets() {
+      return [...sheetList.querySelectorAll('input:checked')].map((el) => el.value);
+    }
+
+    fileInput.addEventListener('change', async () => {
+      uploadId = null;
+      factorySheets = [];
+      resultCard.hidden = true;
+      compareBtn.disabled = true;
+      renderSheets();
+
+      const file = fileInput.files?.[0];
+      if (!file) {
+        fileHint.textContent = 'Chưa chọn file';
+        return;
+      }
+
+      fileHint.textContent = file.name;
+      setLog('Đang đọc danh sách sheet...');
+
+      const fd = new FormData();
+      fd.append('file', file);
+
+      try {
+        const res = await fetch('/api/inspect', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Lỗi đọc file');
+
+        uploadId = data.uploadId;
+        factorySheets = data.factorySheets || [];
+        fileHint.textContent = `${file.name} — ${factorySheets.length} xưởng, ${data.allSheets?.length || 0} sheet`;
+        renderSheets();
+        compareBtn.disabled = false;
+        setLog(`Sẵn sàng. Xưởng: ${factorySheets.join(', ') || 'không phát hiện'}`, 'ok');
+      } catch (e) {
+        setLog(e.message, 'err');
+      }
+    });
+
+    selectAllBtn.addEventListener('click', () => {
+      sheetList.querySelectorAll('input').forEach((el) => {
+        el.checked = true;
+        el.closest('.sheet-chip').classList.add('selected');
+      });
+    });
+
+    clearSheetsBtn.addEventListener('click', () => {
+      sheetList.querySelectorAll('input').forEach((el) => {
+        el.checked = false;
+        el.closest('.sheet-chip').classList.remove('selected');
+      });
+    });
+
+    compareBtn.addEventListener('click', async () => {
+      if (!uploadId) return;
+
+      compareBtn.disabled = true;
+      resultCard.hidden = true;
+      setLog('Đang so sánh (có thể mất vài phút với file lớn)...');
+
+      const fd = new FormData();
+      fd.append('uploadId', uploadId);
+      fd.append('headerRow', document.getElementById('headerRow').value);
+
+      const selected = getSelectedSheets();
+      if (selected.length) fd.append('sheets', JSON.stringify(selected));
+      fd.append('environment', selectedEnvironment || 'production');
+
+      try {
+        const res = await fetch('/api/compare', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Lỗi so sánh');
+
+        const s = data.summary;
+        let html = '<table><thead><tr>';
+        html += '<th>Xưởng</th><th>Excel</th><th>Bỏ qua</th><th>Khớp</th><th>Sai</th><th>Ko có trong DB</th><th>Có trong DB</th></tr></thead><tbody>';
+
+        for (const row of s.sheets) {
+          html += `<tr><td>${row.factory.toUpperCase()}</td>`;
+          html += `<td>${row.totalExcelRows}</td><td>${row.skippedRows}</td>`;
+          html += `<td>${row.matched}</td><td>${row.mismatched}</td>`;
+          html += `<td>${row.notInDb}</td><td>${row.onlyInDb}</td></tr>`;
+        }
+
+        const t = s.totals;
+        html += `<tr class="totals"><td>TỔNG</td>`;
+        html += `<td>${t.totalExcelRows}</td><td>${t.skippedRows}</td>`;
+        html += `<td>${t.matched}</td><td>${t.mismatched}</td>`;
+        html += `<td>${t.notInDb}</td><td>${t.onlyInDb}</td></tr>`;
+        html += '</tbody></table>';
+        html += `<p style="margin-top:0.75rem;color:var(--muted);font-size:0.85rem;">Tỷ lệ khớp: <strong style="color:var(--text)">${s.matchRate}%</strong> (${t.matched}/${t.totalExcelRows})</p>`;
+
+        summaryTable.innerHTML = html;
+        downloadBar.hidden = false;
+        downloadBar.innerHTML = `
+          <span>Báo cáo Excel đã sẵn sàng</span>
+          <a href="${data.downloadUrl}" download>Tải file báo cáo (.xlsx)</a>
+        `;
+        resultCard.hidden = false;
+        setLog('Hoàn tất!', 'ok');
+      } catch (e) {
+        setLog(e.message, 'err');
+      } finally {
+        compareBtn.disabled = false;
+      }
+    });
+
+    loadEnvironments();
+  </script>
+</body>
+</html>
