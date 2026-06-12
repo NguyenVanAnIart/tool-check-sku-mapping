@@ -80,6 +80,7 @@ export function buildMatchKey(
   type: string,
   printTech: string,
   include: string,
+  dtgPrintSku: string,
 ): string {
   return [
     factory.trim().toLowerCase(),
@@ -87,6 +88,7 @@ export function buildMatchKey(
     type.trim(),
     printTech.trim(),
     include.trim(),
+    dtgPrintSku.trim(),
   ].join('|');
 }
 

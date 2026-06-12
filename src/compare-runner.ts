@@ -13,6 +13,7 @@ import {
   parseFactorySheets,
 } from './excel-parser.js';
 import { filterReportByFactory, writeReport } from './report.js';
+import { parseSkuMapping } from './sku-mapping.js';
 import type { CompareReport } from './types.js';
 
 export interface RunCompareOptions {
@@ -83,8 +84,9 @@ export async function runCompare(options: RunCompareOptions): Promise<RunCompare
 
   const factories = [...new Set(sheets.map((s) => s.factory))];
   const dbRows = await fetchSkuPriceByFactories(dbConfig, factories);
+  const skuMapping = await parseSkuMapping(filePath);
 
-  let report = compareSheetsWithDb(sheets, dbRows, filePath);
+  let report = compareSheetsWithDb(sheets, dbRows, filePath, skuMapping);
   if (options.factory) {
     report = filterReportByFactory(report, options.factory);
   }

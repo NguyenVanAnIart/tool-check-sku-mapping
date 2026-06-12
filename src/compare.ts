@@ -5,6 +5,7 @@ import {
   numbersEqual,
 } from './normalize.js';
 import type { ParsedFactorySheet } from './excel-parser.js';
+import { resolveDtgPrintSkus } from './sku-mapping.js';
 import type {
   CompareReport,
   CompareResult,
@@ -12,6 +13,7 @@ import type {
   ExcelRow,
   FieldDiff,
   SheetSummary,
+  SkuMappingIndex,
 } from './types.js';
 import { COMPARE_FIELDS } from './types.js';
 
@@ -69,6 +71,7 @@ export function compareSheetsWithDb(
   sheets: ParsedFactorySheet[],
   dbRows: DbRow[],
   sourceFile: string,
+  skuMapping: SkuMappingIndex,
 ): CompareReport {
   const dbByKey = new Map<string, DbRow>();
   for (const row of dbRows) {
@@ -78,6 +81,7 @@ export function compareSheetsWithDb(
       row.type,
       row.print_tech,
       row.include ?? '',
+      row.sku_ecb ?? '',
     );
     dbByKey.set(key, row);
   }
@@ -92,15 +96,47 @@ export function compareSheetsWithDb(
     let notInDb = 0;
 
     for (const excelRow of sheet.rows) {
-      const matchKey = buildMatchKey(
-        sheet.factory,
-        excelRow.sku,
-        excelRow.type,
-        excelRow.printTech,
-        excelRow.include,
-      );
+      const dtgPrintSkus = resolveDtgPrintSkus(skuMapping, sheet.factory, excelRow.id);
 
-      const dbRow = dbByKey.get(matchKey) ?? null;
+      if (dtgPrintSkus.length === 0) {
+        notInDb++;
+        results.push({
+          factory: sheet.factory,
+          excelRow,
+          dbRow: null,
+          status: 'not_in_db',
+          diffs: [],
+          matchKey: buildMatchKey(
+            sheet.factory,
+            excelRow.sku,
+            excelRow.type,
+            excelRow.printTech,
+            excelRow.include,
+            '',
+          ),
+        });
+        continue;
+      }
+
+      let dbRow: DbRow | null = null;
+      let matchKey = '';
+
+      for (const dtgPrintSku of dtgPrintSkus) {
+        const key = buildMatchKey(
+          sheet.factory,
+          excelRow.sku,
+          excelRow.type,
+          excelRow.printTech,
+          excelRow.include,
+          dtgPrintSku,
+        );
+        const found = dbByKey.get(key);
+        if (found) {
+          dbRow = found;
+          matchKey = key;
+          break;
+        }
+      }
 
       if (!dbRow) {
         notInDb++;
@@ -110,7 +146,14 @@ export function compareSheetsWithDb(
           dbRow: null,
           status: 'not_in_db',
           diffs: [],
-          matchKey,
+          matchKey: buildMatchKey(
+            sheet.factory,
+            excelRow.sku,
+            excelRow.type,
+            excelRow.printTech,
+            excelRow.include,
+            dtgPrintSkus[0],
+          ),
         });
         continue;
       }
@@ -151,6 +194,7 @@ export function compareSheetsWithDb(
         r.type,
         r.print_tech,
         r.include ?? '',
+        r.sku_ecb ?? '',
       );
       return !matchedKeys.has(key);
     }).length;
@@ -174,6 +218,7 @@ export function compareSheetsWithDb(
       row.type,
       row.print_tech,
       row.include ?? '',
+      row.sku_ecb ?? '',
     );
     if (!matchedKeys.has(key)) {
       const inExcelFactories = sheets.some(

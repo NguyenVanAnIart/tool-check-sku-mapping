@@ -1,3 +1,10 @@
+export interface SkuMappingIndex {
+  /** factory (lowercase) → ID xưởng → danh sách DTG Print SKU (có thể nhiều dòng mapping) */
+  byFactoryId: Map<string, Map<string, string[]>>;
+  /** Các cột xưởng có trong header SKU MAPPING */
+  factories: Set<string>;
+}
+
 export interface ExcelRow {
   rowNumber: number;
   id: string;

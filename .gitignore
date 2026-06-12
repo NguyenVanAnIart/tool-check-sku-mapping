@@ -4,4 +4,5 @@ dist/
 .env.dev
 .env.production
 reports/
+uploads/
 *.log

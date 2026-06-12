@@ -213,12 +213,186 @@
       margin-right: 0.35rem;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .logic-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      width: 100%;
+      padding: 0;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      text-align: left;
+    }
+    .logic-toggle:hover { color: var(--text); }
+    .logic-toggle .chevron {
+      font-size: 0.85rem;
+      transition: transform 0.2s;
+    }
+    .logic-toggle[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+    .logic-body {
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: var(--text);
+    }
+    .logic-body h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 1.25rem 0 0.5rem;
+    }
+    .logic-body h3:first-child { margin-top: 0; }
+    .logic-body p { margin: 0.5rem 0; color: var(--muted); }
+    .logic-body code {
+      font-size: 0.8rem;
+      background: var(--bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+    }
+    .logic-body pre {
+      margin: 0.5rem 0;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+    .logic-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin: 0.5rem 0;
+    }
+    .logic-table th,
+    .logic-table td {
+      padding: 0.45rem 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .logic-table th { color: var(--muted); font-weight: 500; }
+    .logic-flow {
+      margin: 0.75rem 0;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+    .logic-flow strong { color: var(--text); }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>SKU Price Compare</h1>
     <p class="subtitle">So sánh file Excel giá xưởng với bảng sku_price trên PostgreSQL</p>
+
+    <div class="card" id="logicCard">
+      <button type="button" class="logic-toggle" id="logicToggle" aria-expanded="false" aria-controls="logicBody">
+        <span>Logic so sánh</span>
+        <span class="chevron" aria-hidden="true">▼</span>
+      </button>
+      <div class="logic-body" id="logicBody" hidden>
+        <h3>1. Khóa tìm bản ghi DB</h3>
+        <p>Mỗi dòng Excel được tìm trong DB theo khóa (giống unique index):</p>
+        <pre>factory + sku_factory + type + print_tech + include + DTG Print SKU</pre>
+        <p>
+          <code>factory</code> lấy từ tên sheet Excel (vd: LK401).
+          Các trường còn lại lấy từ cột tương ứng trên dòng Excel.
+          <strong>DTG Print SKU</strong> tra từ sheet SKU MAPPING (xem mục 4) — phía DB dùng cột <code>sku_ecb</code>.
+        </p>
+
+        <h3>2. Phân loại kết quả</h3>
+        <table class="logic-table">
+          <thead>
+            <tr>
+              <th>Bảng / trạng thái</th>
+              <th>Điều kiện</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Không có trong DB</strong></td>
+              <td>Không tra được DTG Print SKU từ SKU MAPPING, hoặc không tìm thấy bản ghi DB với cùng khóa 6 trường</td>
+            </tr>
+            <tr>
+              <td><strong>Khớp</strong></td>
+              <td>Tìm thấy bản ghi DB và mọi trường so sánh đều bằng nhau</td>
+            </tr>
+            <tr>
+              <td><strong>Sai khác</strong></td>
+              <td>Tìm thấy bản ghi DB nhưng có ít nhất 1 trường khác nhau</td>
+            </tr>
+            <tr>
+              <td><strong>Chỉ có trong DB</strong></td>
+              <td>Bản ghi DB thuộc xưởng đang so sánh nhưng không có dòng Excel nào khớp khóa</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="logic-flow">
+          <strong>Dòng Excel</strong> → tra DTG Print SKU từ SKU MAPPING →
+          không có → <strong>Không có trong DB</strong><br />
+          có → tìm DB theo khóa 6 trường → không có → <strong>Không có trong DB</strong><br />
+          có → so từng trường → tất cả bằng → <strong>Khớp</strong> /
+          có khác → <strong>Sai khác</strong><br />
+          <strong>Bản ghi DB cùng xưởng</strong> → key không xuất hiện trong Excel → <strong>Chỉ có trong DB</strong>
+        </div>
+
+        <h3>3. Quy tắc so sánh từng trường</h3>
+        <p>So các cột trên sheet xưởng (trừ ID): SKU, Product Name, Color, Size, Type, PrintTech, Include, Exclude, Tag, Stock, Price, Flash sale 1, Flash sale 2, Additional Price.</p>
+        <table class="logic-table">
+          <thead>
+            <tr>
+              <th>Loại trường</th>
+              <th>Cách so</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Stock</td>
+              <td>So boolean — <code>Y</code>, <code>yes</code>, <code>true</code>, <code>1</code> = có stock</td>
+            </tr>
+            <tr>
+              <td>Price, Flash sale 1/2, Additional Price</td>
+              <td>So số; chênh lệch ≤ 0.005 coi là bằng; null = null thì bằng</td>
+            </tr>
+            <tr>
+              <td>Include, Exclude</td>
+              <td>Trim chuỗi; chuỗi rỗng vẫn là rỗng</td>
+            </tr>
+            <tr>
+              <td>Các trường còn lại</td>
+              <td>Trim chuỗi; chuỗi rỗng coi như null</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>4. Tra DTG Print SKU (sheet SKU MAPPING)</h3>
+        <p>Sheet <strong>SKU MAPPING</strong> (dòng 1 = header) có cột <code>DTG Print SKU</code> và các cột xưởng (NB1, LK401, …).</p>
+        <div class="logic-flow">
+          Lấy <strong>ID</strong> của dòng trên sheet xưởng →
+          tìm dòng trong SKU MAPPING có giá trị cột xưởng tương ứng = ID đó →
+          lấy <strong>DTG Print SKU</strong> (có thể nhiều dòng cùng ID) →
+          thử từng giá trị cho đến khi khớp <code>sku_ecb</code> trong DB
+        </div>
+        <p class="hint">Không tìm thấy mapping → vào bảng «Không có trong DB».</p>
+
+        <p class="hint" style="margin-top:0.75rem;">
+          Cùng SKU + type + printTech nhưng <code>include</code> khác → coi là 2 bản ghi khác nhau.
+          Dòng Excel bị bỏ qua khi parse (thiếu SKU, v.v.) không vào 4 bảng trên — chỉ đếm ở cột «Bỏ qua».
+        </p>
+      </div>
+    </div>
 
     <div class="card">
       <h2>Môi trường database</h2>
@@ -508,6 +682,14 @@
       } finally {
         compareBtn.disabled = false;
       }
+    });
+
+    document.getElementById('logicToggle').addEventListener('click', () => {
+      const toggle = document.getElementById('logicToggle');
+      const body = document.getElementById('logicBody');
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      body.hidden = expanded;
     });
 
     loadEnvironments();
